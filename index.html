@@ -8,11 +8,11 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Arial, sans-serif; background: #1a1a2e; display: flex; justify-content: center; align-items: center; height: 100vh; }
         .login-box { background: white; padding: 40px; border-radius: 12px; width: 360px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
-        .login-box h1 { text-align:center; font-size:22px; color:#1a1a2e; margin-bottom:6px; }
-        .login-box p { text-align:center; color:#888; font-size:13px; margin-bottom:30px; }
+        h1 { text-align:center; font-size:22px; color:#1a1a2e; margin-bottom:6px; }
+        p { text-align:center; color:#888; font-size:13px; margin-bottom:30px; }
         .field { margin-bottom:18px; }
         .field label { display:block; font-size:13px; font-weight:600; color:#444; margin-bottom:6px; }
-        .field input { width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:15px; outline:none; transition:border 0.2s; }
+        .field input { width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:15px; outline:none; }
         .field input:focus { border-color:#4f46e5; }
         button { width:100%; padding:12px; background:#4f46e5; color:white; border:none; border-radius:8px; font-size:16px; font-weight:600; cursor:pointer; }
         button:hover { background:#4338ca; }
@@ -25,17 +25,101 @@
         <h1>🏢 Business Manager</h1>
         <p>Inicie sesión en su cuenta</p>
         <div class="field">
-            <label>Correo o Usuario</label>
-            <input type="text" id="username" placeholder="correo@ejemplo.com" autocomplete="username" />
+            <label>Correo</label>
+            <input type="email" id="username" placeholder="correo@ejemplo.com" autocomplete="email" />
         </div>
         <div class="field">
             <label>Contraseña</label>
             <input type="password" id="password" placeholder="Ingrese su contraseña" autocomplete="current-password" />
         </div>
-        <button onclick="login()">Iniciar Sesión</button>
+        <button onclick="doLogin()">Iniciar Sesión</button>
         <div id="error-msg"></div>
         <div class="version">v2.0 — Cloud Edition</div>
     </div>
-    <script type="module" src="auth.js"></script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBevSvWNUBHCZRgRrthlTicy2_Dap_US84",
+    authDomain: "carwash-crm-cdf50.firebaseapp.com",
+    projectId: "carwash-crm-cdf50",
+    storageBucket: "carwash-crm-cdf50.firebasestorage.app",
+    messagingSenderId: "219035211353",
+    appId: "1:219035211353:web:4d1a5c11e0a6fd11a1c348"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+window.doLogin = async function() {
+    const email = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value;
+    const errorMsg = document.getElementById("error-msg");
+
+    if (!email || !password) {
+        errorMsg.textContent = "⚠️ Ingrese correo y contraseña.";
+        return;
+    }
+
+    errorMsg.style.color = "#4f46e5";
+    errorMsg.textContent = "Iniciando sesión...";
+
+    try {
+        // Sign in with Firebase
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        const user = cred.user;
+
+        errorMsg.textContent = "Cargando datos...";
+
+        // Load data from Firestore
+        const snap = await getDoc(doc(db, "businesses", "carwash-001"));
+        let data;
+        if (snap.exists()) {
+            data = JSON.parse(snap.data().data);
+        } else {
+            // First time — empty data
+            data = {
+                users: [], inventory: [], services: [], serviceSales: [],
+                inventoryMovements: [], clients: [], empleados: [],
+                nominaHistorial: [], prestamos: [], comisiones: [],
+                settings: { lowStockThreshold: 5, currency: "MXN" },
+                companyInfo: {}
+            };
+        }
+
+        // Save to sessionStorage
+        sessionStorage.setItem("appData", JSON.stringify(data));
+        sessionStorage.setItem("currentUser", JSON.stringify({
+            username: email,
+            role: "admin",
+            uid: user.uid
+        }));
+        sessionStorage.setItem("_firebaseUID", user.uid);
+
+        // Redirect to app
+        window.location.href = "app.html";
+
+    } catch(e) {
+        errorMsg.style.color = "#e53e3e";
+        if (e.code === "auth/user-not-found" || e.code === "auth/wrong-password" || e.code === "auth/invalid-credential") {
+            errorMsg.textContent = "❌ Correo o contraseña incorrectos.";
+        } else if (e.code === "auth/too-many-requests") {
+            errorMsg.textContent = "❌ Demasiados intentos. Intente más tarde.";
+        } else if (e.code === "auth/invalid-email") {
+            errorMsg.textContent = "❌ Correo inválido.";
+        } else {
+            errorMsg.textContent = "❌ Error: " + e.message;
+        }
+    }
+};
+
+document.addEventListener("keydown", function(e) {
+    if (e.key === "Enter") window.doLogin();
+});
+</script>
 </body>
 </html>

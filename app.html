@@ -1217,20 +1217,60 @@
                 <div class="settings-row"><span class="settings-label">Rol</span><span class="settings-value" id="settings-role">—</span></div>
             </div>
             <div class="settings-card">
-                <h2 class="settings-card-title">👤 Change Usuario</h2>
-                <div class="settings-field"><label>New Usuario</label><input type="text" id="new-username" placeholder="Ingrese nuevo usuario" /></div>
-                <div class="settings-field"><label>Contraseña Actual (requerida)</label><input type="password" id="username-password" placeholder="Ingrese su contraseña actual" /></div>
-                <div id="username-message" style="min-height:20px; font-size:13px; margin-bottom:16px;"></div>
-                <button class="settings-btn-primary" onclick="changeUsuario()">👤 Update Usuario</button>
-            </div>
-            <div class="settings-card">
                 <h2 class="settings-card-title">🔑 Cambiar Contraseña</h2>
-                <p style="color:#888; font-size:13px; margin-bottom:16px;">Su contraseña también es su clave de encriptación.</p>
-                <div class="settings-field"><label>Contraseña Actual</label><input type="password" id="current-password" placeholder="Ingrese contraseña actual" /></div>
+                <p style="color:#888; font-size:13px; margin-bottom:16px;">Cambia la contraseña de tu cuenta actual.</p>
                 <div class="settings-field"><label>Nueva Contraseña</label><input type="password" id="new-password" placeholder="Mínimo 6 caracteres" /></div>
-                <div class="settings-field"><label>Confirm Nueva Contraseña</label><input type="password" id="confirm-password" placeholder="Repita la nueva contraseña" /></div>
+                <div class="settings-field"><label>Confirmar Nueva Contraseña</label><input type="password" id="confirm-password" placeholder="Repita la nueva contraseña" /></div>
                 <div id="password-message" style="min-height:20px; font-size:13px; margin-bottom:16px;"></div>
                 <button class="settings-btn-primary" onclick="changePassword()">🔒 Actualizar Contraseña</button>
+            </div>
+
+            <!-- Users Management Card -->
+            <div class="settings-card">
+                <h2 class="settings-card-title">👥 Gestión de Usuarios</h2>
+                <p style="color:#888; font-size:13px; margin-bottom:16px;">
+                    Crea y administra usuarios que pueden acceder al CRM. Solo administradores pueden ver esta sección.
+                </p>
+
+                <!-- Create new user -->
+                <div style="background:#f8f9ff;border:1px solid #e0e4ff;border-radius:10px;padding:16px;margin-bottom:16px;">
+                    <div style="font-size:13px;font-weight:700;color:#4f46e5;margin-bottom:12px;">➕ Crear Nuevo Usuario</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                        <div class="settings-field" style="margin:0;">
+                            <label>Correo del Nuevo Usuario</label>
+                            <input type="email" id="new-user-email" placeholder="empleado@correo.com" style="max-width:100%;" />
+                        </div>
+                        <div class="settings-field" style="margin:0;">
+                            <label>Contraseña Inicial</label>
+                            <input type="password" id="new-user-password" placeholder="Mínimo 6 caracteres" style="max-width:100%;" />
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                        <div class="settings-field" style="margin:0;">
+                            <label>Nombre / Puesto</label>
+                            <input type="text" id="new-user-name" placeholder="ej. Recepcionista" style="max-width:100%;" />
+                        </div>
+                        <div class="settings-field" style="margin:0;">
+                            <label>Rol</label>
+                            <select id="new-user-role" style="max-width:100%;">
+                                <option value="employee">Empleado</option>
+                                <option value="admin">Administrador</option>
+                                <option value="reception">Solo Recepción</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="new-user-error" style="min-height:16px;font-size:13px;color:#e53e3e;margin-bottom:10px;"></div>
+                    <button class="settings-btn-primary" onclick="createNewUser()">👤 Crear Usuario</button>
+                </div>
+
+                <!-- Users list -->
+                <div>
+                    <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:10px;">Usuarios Registrados</div>
+                    <div id="users-list-container">
+                        <p style="color:#aaa;font-size:13px;">Cargando usuarios...</p>
+                    </div>
+                </div>
+                <div id="users-message" style="min-height:16px;font-size:13px;margin-top:10px;"></div>
             </div>
             <div class="settings-card">
                 <h2 class="settings-card-title">🛠️ Preferencias de la App</h2>
@@ -5420,7 +5460,357 @@ async function importBackup(event) {
 }
 </script>
 
+
+<script type="module">
+// ============================================
+// USERS MANAGEMENT — Firebase Auth
+// ============================================
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
+import { getAuth, createUserWithEmailAndPassword, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBevSvWNUBHCZRgRrthlTicy2_Dap_US84",
+    authDomain: "carwash-crm-cdf50.firebaseapp.com",
+    projectId: "carwash-crm-cdf50",
+    storageBucket: "carwash-crm-cdf50.firebasestorage.app",
+    messagingSenderId: "219035211353",
+    appId: "1:219035211353:web:4d1a5c11e0a6fd11a1c348"
+};
+
+const fbApp2 = getApps().find(a => a.name === "users-app") || initializeApp(firebaseConfig, "users-app");
+const fbAuth2 = getAuth(fbApp2);
+const fbDb2 = getFirestore(fbApp2);
+
+// Get clientId from current session data
+function getClientId() {
+    try {
+        const data = JSON.parse(sessionStorage.getItem("appData") || "{}");
+        return data.clientId || "carwash-001";
+    } catch(e) { return "carwash-001"; }
+}
+
+// Create new user
+window.createNewUser = async function() {
+    const email = document.getElementById("new-user-email")?.value.trim();
+    const password = document.getElementById("new-user-password")?.value;
+    const name = document.getElementById("new-user-name")?.value.trim();
+    const role = document.getElementById("new-user-role")?.value;
+    const errorEl = document.getElementById("new-user-error");
+    const msgEl = document.getElementById("users-message");
+
+    errorEl.textContent = "";
+    if (!email) { errorEl.textContent = "⚠️ Ingrese el correo del usuario."; return; }
+    if (!password || password.length < 6) { errorEl.textContent = "⚠️ La contraseña debe tener al menos 6 caracteres."; return; }
+
+    errorEl.style.color = "#4f46e5";
+    errorEl.textContent = "Creando usuario...";
+
+    try {
+        // Create user in Firebase Auth
+        // Note: createUserWithEmailAndPassword signs in as the new user
+        // We need to use Admin SDK for this ideally, but for now we use client SDK
+        // Save current user info first
+        const currentUser = JSON.parse(sessionStorage.getItem("currentUser") || "{}");
+        
+        // Create new user - this will sign out current user temporarily
+        const cred = await createUserWithEmailAndPassword(fbAuth2, email, password);
+        const newUid = cred.user.uid;
+
+        // Save user profile to Firestore under this business
+        const clientId = getClientId();
+        await setDoc(doc(fbDb2, "businesses", clientId, "users", newUid), {
+            email, name: name || email, role,
+            uid: newUid,
+            createdAt: new Date().toISOString()
+        });
+
+        // Update app data
+        const data = JSON.parse(sessionStorage.getItem("appData") || "{}");
+        if (!data.appUsers) data.appUsers = [];
+        data.appUsers.push({ uid: newUid, email, name: name || email, role });
+        sessionStorage.setItem("appData", JSON.stringify(data));
+        await window.DB.save(data);
+
+        errorEl.style.color = "#38a169";
+        errorEl.textContent = "✅ Usuario " + email + " creado correctamente.";
+        document.getElementById("new-user-email").value = "";
+        document.getElementById("new-user-password").value = "";
+        document.getElementById("new-user-name").value = "";
+        
+        loadUsersList();
+
+    } catch(e) {
+        errorEl.style.color = "#e53e3e";
+        if (e.code === "auth/email-already-in-use") {
+            errorEl.textContent = "⚠️ Ese correo ya está registrado.";
+        } else {
+            errorEl.textContent = "❌ Error: " + e.message;
+        }
+    }
+};
+
+// Load users list
+window.loadUsersList = async function() {
+    const container = document.getElementById("users-list-container");
+    if (!container) return;
+
+    try {
+        const data = JSON.parse(sessionStorage.getItem("appData") || "{}");
+        const users = data.appUsers || [];
+        const currentUser = JSON.parse(sessionStorage.getItem("currentUser") || "{}");
+
+        if (users.length === 0) {
+            container.innerHTML = '<p style="color:#aaa;font-size:13px;">No hay otros usuarios registrados.</p>';
+            return;
+        }
+
+        container.innerHTML = users.map(u => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#f8f9ff;border-radius:8px;margin-bottom:8px;">
+                <div>
+                    <div style="font-weight:600;font-size:14px;color:#1a1a2e;">${u.name || u.email}</div>
+                    <div style="font-size:12px;color:#888;">${u.email} · ${u.role === 'admin' ? '👑 Admin' : u.role === 'reception' ? '🚗 Recepción' : '👤 Empleado'}</div>
+                </div>
+                ${u.email !== currentUser.username ? `<button onclick="deleteAppUser('${u.uid}','${u.email}')" style="padding:4px 10px;background:#fff5f5;color:#e53e3e;border:1px solid #fed7d7;border-radius:6px;font-size:12px;cursor:pointer;">🗑️ Eliminar</button>` : '<span style="font-size:11px;color:#888;">(tú)</span>'}
+            </div>`).join('');
+    } catch(e) {
+        container.innerHTML = '<p style="color:#e53e3e;font-size:13px;">Error al cargar usuarios.</p>';
+    }
+};
+
+window.deleteAppUser = async function(uid, email) {
+    if (!confirm("¿Eliminar usuario " + email + "? El acceso será revocado.")) return;
+    try {
+        const data = JSON.parse(sessionStorage.getItem("appData") || "{}");
+        data.appUsers = (data.appUsers || []).filter(u => u.uid !== uid);
+        sessionStorage.setItem("appData", JSON.stringify(data));
+        await window.DB.save(data);
+        loadUsersList();
+        document.getElementById("users-message").textContent = "✅ Usuario eliminado.";
+        setTimeout(() => { document.getElementById("users-message").textContent = ""; }, 3000);
+    } catch(e) {
+        document.getElementById("users-message").textContent = "❌ Error: " + e.message;
+    }
+};
+
+// Change password using Firebase Auth
+window.changePassword = async function() {
+    const newPwd = document.getElementById("new-password")?.value;
+    const confirmPwd = document.getElementById("confirm-password")?.value;
+    const msgEl = document.getElementById("password-message");
+
+    msgEl.textContent = "";
+    if (!newPwd) { msgEl.style.color = "#e53e3e"; msgEl.textContent = "⚠️ Ingrese la nueva contraseña."; return; }
+    if (newPwd.length < 6) { msgEl.style.color = "#e53e3e"; msgEl.textContent = "⚠️ Mínimo 6 caracteres."; return; }
+    if (newPwd !== confirmPwd) { msgEl.style.color = "#e53e3e"; msgEl.textContent = "⚠️ Las contraseñas no coinciden."; return; }
+
+    try {
+        // Get main Firebase auth instance (from the first module block)
+        const { getAuth } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+        const { getApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+        const mainAuth = getAuth(getApp());
+        const user = mainAuth.currentUser;
+        if (!user) { msgEl.style.color = "#e53e3e"; msgEl.textContent = "❌ No hay sesión activa."; return; }
+        await updatePassword(user, newPwd);
+        msgEl.style.color = "#38a169";
+        msgEl.textContent = "✅ Contraseña actualizada correctamente.";
+        document.getElementById("new-password").value = "";
+        document.getElementById("confirm-password").value = "";
+        setTimeout(() => { msgEl.textContent = ""; }, 3000);
+    } catch(e) {
+        msgEl.style.color = "#e53e3e";
+        if (e.code === "auth/requires-recent-login") {
+            msgEl.textContent = "⚠️ Por seguridad, cierre sesión e inicie de nuevo para cambiar la contraseña.";
+        } else {
+            msgEl.textContent = "❌ Error: " + e.message;
+        }
+    }
+};
+
+// Load users when settings module loads
+const origLoadSettings = window.loadSettings;
+window.loadSettings = function() {
+    if (origLoadSettings) origLoadSettings();
+    setTimeout(loadUsersList, 300);
+};
+</script>
 </body>
 </html>
+
+<script type="module">
+// ============================================
+// USERS MANAGEMENT — Firebase Auth
+// ============================================
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
+import { getAuth, createUserWithEmailAndPassword, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBevSvWNUBHCZRgRrthlTicy2_Dap_US84",
+    authDomain: "carwash-crm-cdf50.firebaseapp.com",
+    projectId: "carwash-crm-cdf50",
+    storageBucket: "carwash-crm-cdf50.firebasestorage.app",
+    messagingSenderId: "219035211353",
+    appId: "1:219035211353:web:4d1a5c11e0a6fd11a1c348"
+};
+
+const fbApp2 = getApps().find(a => a.name === "users-app") || initializeApp(firebaseConfig, "users-app");
+const fbAuth2 = getAuth(fbApp2);
+const fbDb2 = getFirestore(fbApp2);
+
+// Get clientId from current session data
+function getClientId() {
+    try {
+        const data = JSON.parse(sessionStorage.getItem("appData") || "{}");
+        return data.clientId || "carwash-001";
+    } catch(e) { return "carwash-001"; }
+}
+
+// Create new user
+window.createNewUser = async function() {
+    const email = document.getElementById("new-user-email")?.value.trim();
+    const password = document.getElementById("new-user-password")?.value;
+    const name = document.getElementById("new-user-name")?.value.trim();
+    const role = document.getElementById("new-user-role")?.value;
+    const errorEl = document.getElementById("new-user-error");
+    const msgEl = document.getElementById("users-message");
+
+    errorEl.textContent = "";
+    if (!email) { errorEl.textContent = "⚠️ Ingrese el correo del usuario."; return; }
+    if (!password || password.length < 6) { errorEl.textContent = "⚠️ La contraseña debe tener al menos 6 caracteres."; return; }
+
+    errorEl.style.color = "#4f46e5";
+    errorEl.textContent = "Creando usuario...";
+
+    try {
+        // Create user in Firebase Auth
+        // Note: createUserWithEmailAndPassword signs in as the new user
+        // We need to use Admin SDK for this ideally, but for now we use client SDK
+        // Save current user info first
+        const currentUser = JSON.parse(sessionStorage.getItem("currentUser") || "{}");
+        
+        // Create new user - this will sign out current user temporarily
+        const cred = await createUserWithEmailAndPassword(fbAuth2, email, password);
+        const newUid = cred.user.uid;
+
+        // Save user profile to Firestore under this business
+        const clientId = getClientId();
+        await setDoc(doc(fbDb2, "businesses", clientId, "users", newUid), {
+            email, name: name || email, role,
+            uid: newUid,
+            createdAt: new Date().toISOString()
+        });
+
+        // Update app data
+        const data = JSON.parse(sessionStorage.getItem("appData") || "{}");
+        if (!data.appUsers) data.appUsers = [];
+        data.appUsers.push({ uid: newUid, email, name: name || email, role });
+        sessionStorage.setItem("appData", JSON.stringify(data));
+        await window.DB.save(data);
+
+        errorEl.style.color = "#38a169";
+        errorEl.textContent = "✅ Usuario " + email + " creado correctamente.";
+        document.getElementById("new-user-email").value = "";
+        document.getElementById("new-user-password").value = "";
+        document.getElementById("new-user-name").value = "";
+        
+        loadUsersList();
+
+    } catch(e) {
+        errorEl.style.color = "#e53e3e";
+        if (e.code === "auth/email-already-in-use") {
+            errorEl.textContent = "⚠️ Ese correo ya está registrado.";
+        } else {
+            errorEl.textContent = "❌ Error: " + e.message;
+        }
+    }
+};
+
+// Load users list
+window.loadUsersList = async function() {
+    const container = document.getElementById("users-list-container");
+    if (!container) return;
+
+    try {
+        const data = JSON.parse(sessionStorage.getItem("appData") || "{}");
+        const users = data.appUsers || [];
+        const currentUser = JSON.parse(sessionStorage.getItem("currentUser") || "{}");
+
+        if (users.length === 0) {
+            container.innerHTML = '<p style="color:#aaa;font-size:13px;">No hay otros usuarios registrados.</p>';
+            return;
+        }
+
+        container.innerHTML = users.map(u => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#f8f9ff;border-radius:8px;margin-bottom:8px;">
+                <div>
+                    <div style="font-weight:600;font-size:14px;color:#1a1a2e;">${u.name || u.email}</div>
+                    <div style="font-size:12px;color:#888;">${u.email} · ${u.role === 'admin' ? '👑 Admin' : u.role === 'reception' ? '🚗 Recepción' : '👤 Empleado'}</div>
+                </div>
+                ${u.email !== currentUser.username ? `<button onclick="deleteAppUser('${u.uid}','${u.email}')" style="padding:4px 10px;background:#fff5f5;color:#e53e3e;border:1px solid #fed7d7;border-radius:6px;font-size:12px;cursor:pointer;">🗑️ Eliminar</button>` : '<span style="font-size:11px;color:#888;">(tú)</span>'}
+            </div>`).join('');
+    } catch(e) {
+        container.innerHTML = '<p style="color:#e53e3e;font-size:13px;">Error al cargar usuarios.</p>';
+    }
+};
+
+window.deleteAppUser = async function(uid, email) {
+    if (!confirm("¿Eliminar usuario " + email + "? El acceso será revocado.")) return;
+    try {
+        const data = JSON.parse(sessionStorage.getItem("appData") || "{}");
+        data.appUsers = (data.appUsers || []).filter(u => u.uid !== uid);
+        sessionStorage.setItem("appData", JSON.stringify(data));
+        await window.DB.save(data);
+        loadUsersList();
+        document.getElementById("users-message").textContent = "✅ Usuario eliminado.";
+        setTimeout(() => { document.getElementById("users-message").textContent = ""; }, 3000);
+    } catch(e) {
+        document.getElementById("users-message").textContent = "❌ Error: " + e.message;
+    }
+};
+
+// Change password using Firebase Auth
+window.changePassword = async function() {
+    const newPwd = document.getElementById("new-password")?.value;
+    const confirmPwd = document.getElementById("confirm-password")?.value;
+    const msgEl = document.getElementById("password-message");
+
+    msgEl.textContent = "";
+    if (!newPwd) { msgEl.style.color = "#e53e3e"; msgEl.textContent = "⚠️ Ingrese la nueva contraseña."; return; }
+    if (newPwd.length < 6) { msgEl.style.color = "#e53e3e"; msgEl.textContent = "⚠️ Mínimo 6 caracteres."; return; }
+    if (newPwd !== confirmPwd) { msgEl.style.color = "#e53e3e"; msgEl.textContent = "⚠️ Las contraseñas no coinciden."; return; }
+
+    try {
+        // Get main Firebase auth instance (from the first module block)
+        const { getAuth } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+        const { getApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+        const mainAuth = getAuth(getApp());
+        const user = mainAuth.currentUser;
+        if (!user) { msgEl.style.color = "#e53e3e"; msgEl.textContent = "❌ No hay sesión activa."; return; }
+        await updatePassword(user, newPwd);
+        msgEl.style.color = "#38a169";
+        msgEl.textContent = "✅ Contraseña actualizada correctamente.";
+        document.getElementById("new-password").value = "";
+        document.getElementById("confirm-password").value = "";
+        setTimeout(() => { msgEl.textContent = ""; }, 3000);
+    } catch(e) {
+        msgEl.style.color = "#e53e3e";
+        if (e.code === "auth/requires-recent-login") {
+            msgEl.textContent = "⚠️ Por seguridad, cierre sesión e inicie de nuevo para cambiar la contraseña.";
+        } else {
+            msgEl.textContent = "❌ Error: " + e.message;
+        }
+    }
+};
+
+// Load users when settings module loads
+const origLoadSettings = window.loadSettings;
+window.loadSettings = function() {
+    if (origLoadSettings) origLoadSettings();
+    setTimeout(loadUsersList, 300);
+};
+</script>
 </body>
 </html>

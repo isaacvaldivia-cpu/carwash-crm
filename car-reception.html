@@ -246,7 +246,7 @@
             gap: 12px;
             z-index: 999;
         }
-        .print-btn, .new-btn, .save-crm-btn {
+        .print-btn, .new-btn, .save-crm-btn, .wa-btn {
             padding: 14px 20px;
             color: white;
             border: none;
@@ -263,8 +263,8 @@
         .save-crm-btn:hover { background: #2c5282; }
         .new-btn { background: #38a169; box-shadow: 0 4px 20px rgba(56,161,105,0.4); }
         .new-btn:hover { background: #276749; }
-        .wa-btn { background: #25D366; box-shadow: 0 4px 20px rgba(37,211,102,0.4); font-family: inherit; font-size: 14px; font-weight: 600; }
-        .wa-btn:hover { background: #128C7E; }
+        .wa-btn { background: #4f46e5; box-shadow: 0 4px 20px rgba(79,70,229,0.4); }
+        .wa-btn:hover { background: #4338ca; }
         /* ---- PRINT STYLES ---- */
         .no-print { }
         @media print {
@@ -315,7 +315,7 @@
 <div id="action-buttons">
     <button class="new-btn" onclick="resetForm()">🆕 Nueva Recepción</button>
     <button class="save-crm-btn" onclick="saveReceptionToCRM()">💾 Guardar en CRM</button>
-    <button class="wa-btn" onclick="sendWhatsApp()">📤 WhatsApp</button>
+    <button class="wa-btn" onclick="sendWhatsApp()">📤 Enviar Resumen</button>
     <button class="print-btn" onclick="window.print()">📄 Guardar PDF</button>
 </div>
 

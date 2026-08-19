@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Business Manager</title>
     <script src="config.js"></script>
-    <script src="crypto.js"></script>
+    <!-- crypto.js not needed in cloud version -->
     <!-- db handled by Firebase -->
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1365,7 +1365,110 @@
             <p style="margin-top:12px;">This module is coming soon.</p>
         </div>
     </template>
-<script src="app.js"></script>
+<script>
+// ============================================
+// APP.JS INLINE — Logic Principal
+// ============================================
+const moduleInitMap = {
+    dashboard: "loadDashboard",
+    inventory: "loadInventory",
+    settings: "loadSettings",
+    reports: "loadReports",
+    movements: "loadMovements",
+    services: "loadServices",
+    receipts: "loadReceipts",
+    clients: "loadClients",
+    nomina: "loadNomina"
+};
+
+function checkSession() {
+    const user = sessionStorage.getItem("currentUser");
+    const data = sessionStorage.getItem("appData");
+    if (!user || !data) {
+        window.location.href = "index.html";
+        return null;
+    }
+    return JSON.parse(user);
+}
+
+function loadUserInfo() {
+    const user = sessionStorage.getItem("currentUser");
+    if (!user) return;
+    const u = JSON.parse(user);
+    const el = document.getElementById("current-user");
+    if (el) el.textContent = "👤 " + u.username + " (admin)";
+    if (typeof loadSidebarBranding === "function") loadSidebarBranding();
+}
+
+function buildSidebar() {
+    const nav = document.getElementById("sidebar-nav");
+    if (!nav) return;
+    nav.innerHTML = "";
+    AppConfig.modules.forEach(function(module) {
+        if (!module.enabled) return;
+        const btn = document.createElement("button");
+        btn.className = "nav-btn";
+        btn.id = "nav-" + module.id;
+        btn.innerHTML = module.icon + " " + module.name;
+        btn.onclick = function() { loadModule(module); };
+        nav.appendChild(btn);
+    });
+    updateSidebarBadges();
+}
+
+function updateSidebarBadges() {
+    try {
+        const data = JSON.parse(sessionStorage.getItem("appData"));
+        if (!data) return;
+        const threshold = AppConfig.lowStockThreshold || 5;
+        const lowStock = (data.inventory || []).filter(function(i) { return i.quantity <= threshold; }).length;
+        const badge = document.getElementById("badge-inventory");
+        if (badge) {
+            badge.textContent = lowStock;
+            badge.style.display = lowStock > 0 ? "inline-block" : "none";
+        }
+    } catch(e) {}
+}
+
+function loadModule(module) {
+    document.querySelectorAll(".nav-btn").forEach(function(b) { b.classList.remove("active"); });
+    const btn = document.getElementById("nav-" + module.id);
+    if (btn) btn.classList.add("active");
+    const template = document.getElementById("tpl-" + module.id);
+    const content = document.getElementById("main-content");
+    if (!template) {
+        content.innerHTML = "<div style='padding:40px;text-align:center;color:#888;'><h2>🚧 Módulo Próximamente</h2></div>";
+        return;
+    }
+    content.innerHTML = "";
+    content.appendChild(template.content.cloneNode(true));
+    const fnName = moduleInitMap[module.id];
+    if (fnName) {
+        let attempts = 0;
+        const interval = setInterval(function() {
+            attempts++;
+            if (typeof window[fnName] === "function") {
+                clearInterval(interval);
+                window[fnName]();
+            } else if (attempts > 20) {
+                clearInterval(interval);
+            }
+        }, 100);
+    }
+}
+
+function loadDefaultModule() {
+    const first = AppConfig.modules.find(function(m) { return m.enabled; });
+    if (first) loadModule(first);
+}
+
+window.onload = function() {
+    checkSession();
+    loadUserInfo();
+    buildSidebar();
+    loadDefaultModule();
+};
+</script>
 
     <script type="module">
     // ============================================
@@ -2304,8 +2407,7 @@ function handleLogoUpload(event) {
             // Encrypt and save to localStorage
             const pwd = DB.getPassword();
             if (pwd) {
-                const encrypted = await Crypto.encrypt(data, pwd);
-                localStorage.setItem("inventory-app-v1", encrypted);
+                await window.DB.save(data);
             }
 
             // Verify
@@ -2619,7 +2721,7 @@ function previewReceipt() {
         const encrypted = localStorage.getItem("inventory-app-v1");
         if (!encrypted) { msgEl.style.color = "#e53e3e"; msgEl.textContent = "⚠️ No se encontraron datos guardados."; return; }
         msgEl.style.color = "#4f46e5"; msgEl.textContent = "Verificando contraseña...";
-        const data = await Crypto.decrypt(encrypted, password);
+        const data = JSON.parse(sessionStorage.getItem("appData") || "null");
         if (!data) { msgEl.style.color = "#e53e3e"; msgEl.textContent = "❌ Contraseña incorrecta."; return; }
         const exists = data.users.find(u => u.username.toLowerCase() === newUsuario.toLowerCase());
         if (exists) { msgEl.style.color = "#e53e3e"; msgEl.textContent = "❌ Ese nombre de usuario ya está en uso."; return; }
@@ -2652,7 +2754,7 @@ function previewReceipt() {
         const encrypted = localStorage.getItem("inventory-app-v1");
         if (!encrypted) { msgEl.style.color = "#e53e3e"; msgEl.textContent = "⚠️ No se encontraron datos guardados."; return; }
         msgEl.style.color = "#4f46e5"; msgEl.textContent = "Verificando contraseña actual...";
-        const data = await Crypto.decrypt(encrypted, currentPwd);
+        const data = JSON.parse(sessionStorage.getItem("appData") || "null");
         if (!data) { msgEl.style.color = "#e53e3e"; msgEl.textContent = "❌ La contraseña actual es incorrecta."; return; }
         const user = JSON.parse(sessionStorage.getItem("currentUser"));
         const userIndex = data.users.findIndex(u => u.username.toLowerCase() === user.username.toLowerCase());
@@ -2662,8 +2764,8 @@ function previewReceipt() {
         sessionStorage.setItem("_sessionKey", btoa(newPwd));
         DB.setPassword(newPwd);
         sessionStorage.setItem("appData", JSON.stringify(data));
-        const newEncrypted = await Crypto.encrypt(data, newPwd);
-        localStorage.setItem("inventory-app-v1", newEncrypted);
+        const newEncrypted = "firebase-auth"; // Cloud: no local encryption
+        const dummy = localStorage.setItem("inventory-app-v1", newEncrypted);
         document.getElementById("current-password").value = "";
         document.getElementById("new-password").value = "";
         document.getElementById("confirm-password").value = "";
@@ -4002,11 +4104,8 @@ async function handleBrandLogoUpload(event) {
 
         sessionStorage.setItem("appData", JSON.stringify(data));
 
-        const pwd = DB.getPassword();
-        if (pwd) {
-            const encrypted = await Crypto.encrypt(data, pwd);
-            localStorage.setItem("inventory-app-v1", encrypted);
-        }
+        // Cloud: save via DB
+        await window.DB.save(data);
 
         // Refresh sidebar
         if (typeof loadSidebarBranding === "function") loadSidebarBranding();
@@ -4022,11 +4121,8 @@ async function removeBrandLogo() {
 
     sessionStorage.setItem("appData", JSON.stringify(data));
 
-    const pwd = DB.getPassword();
-    if (pwd) {
-        const encrypted = await Crypto.encrypt(data, pwd);
-        localStorage.setItem("inventory-app-v1", encrypted);
-    }
+    // Cloud: save via DB
+    await window.DB.save(data);
 
     const preview = document.getElementById("brand-logo-preview");
     if (preview) preview.innerHTML = "🏢";

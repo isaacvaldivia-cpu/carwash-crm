@@ -258,7 +258,7 @@
         .new-btn {
             position: fixed;
             bottom: 30px;
-            right: 210px;
+            right: 390px;
             padding: 14px 24px;
             background: #38a169;
             color: white;
@@ -272,11 +272,28 @@
             z-index: 999;
         }
         .new-btn:hover { background: #276749; transform: translateY(-2px); }
+        .save-crm-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 210px;
+            padding: 14px 24px;
+            background: #2b6cb0;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(43,108,176,0.4);
+            transition: all 0.2s;
+            z-index: 999;
+        }
+        .save-crm-btn:hover { background: #2c5282; transform: translateY(-2px); }
         /* ---- PRINT STYLES ---- */
         @media print {
             body { background: white; padding: 0; }
             .page { box-shadow: none; border-radius: 0; }
-            .print-btn, .new-btn { display: none; }
+            .print-btn, .new-btn, .save-crm-btn { display: none; }
             .field input, .field select, .field textarea { border-bottom-color: #ccc; }
         }
         /* ---- DAMAGE LEGEND ---- */
@@ -312,6 +329,7 @@
 <body>
 
 <button class="print-btn" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+<button class="save-crm-btn" onclick="saveReceptionToCRM()">💾 Guardar en CRM</button>
 <button class="new-btn" onclick="resetForm()">🆕 Nueva Recepción</button>
 
 <div class="page">

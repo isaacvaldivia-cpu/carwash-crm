@@ -263,7 +263,7 @@
         .save-crm-btn:hover { background: #2c5282; }
         .new-btn { background: #38a169; box-shadow: 0 4px 20px rgba(56,161,105,0.4); }
         .new-btn:hover { background: #276749; }
-        .wa-btn { background: #25D366; box-shadow: 0 4px 20px rgba(37,211,102,0.4); }
+        .wa-btn { background: #25D366; box-shadow: 0 4px 20px rgba(37,211,102,0.4); font-family: inherit; font-size: 14px; font-weight: 600; }
         .wa-btn:hover { background: #128C7E; }
         /* ---- PRINT STYLES ---- */
         .no-print { }
@@ -1547,72 +1547,38 @@ function sendWhatsApp() {
     var receptionNo = document.getElementById('reception-number') ? document.getElementById('reception-number').textContent : '';
     var date = document.getElementById('reception-date') ? document.getElementById('reception-date').value : '';
     var damageNotes = document.getElementById('damage-notes') ? document.getElementById('damage-notes').value : '';
-    var generalNotes = document.getElementById('general-notes') ? document.getElementById('general-notes').value : '';
-
     var services = Array.from(document.querySelectorAll('.service-check.checked span'))
         .map(function(s){ return s.textContent.trim(); })
         .filter(function(s){ return s.length > 0; })
         .join(', ');
-
-    var companyName = document.getElementById('company-name-display') ?
-        document.getElementById('company-name-display').textContent.replace('🚗 ','').split(' — ')[0] : 'RC Detailing';
-
-    var msg = '🚗 *' + companyName + '*
-';
-    msg += '━━━━━━━━━━━━━━━━━━━━
-';
-    msg += '📋 *Recepción #' + receptionNo + '*
-';
-    msg += '📅 Fecha: ' + date + '
-';
-    msg += '👤 Cliente: ' + name + '
-';
-    msg += '━━━━━━━━━━━━━━━━━━━━
-';
-    msg += '🚘 *Vehículo*
-';
-    msg += make + ' ' + model + ' ' + year + '
-';
-    msg += '🎨 Color: ' + color + '
-';
-    msg += '🪪 Placa: *' + plate + '*
-';
-    msg += '━━━━━━━━━━━━━━━━━━━━
-';
-    if (services) {
-        msg += '🛠️ *Servicios a realizar*
-' + services + '
-';
-        msg += '━━━━━━━━━━━━━━━━━━━━
-';
-    }
-    if (damageNotes) msg += '⚠️ Daños anotados: ' + damageNotes + '
-';
-    if (generalNotes) msg += '📝 Notas: ' + generalNotes + '
-';
-    msg += '━━━━━━━━━━━━━━━━━━━━
-';
-    msg += '👷 Recibió: ' + receivedBy + '
-';
-    msg += '
-_Las fotos del vehículo se enviarán por separado._
-';
-    msg += '
-_Gracias por su preferencia_ 🙏';
-
-    var encoded = encodeURIComponent(msg);
+    var nameEl = document.getElementById('company-name-display');
+    var companyName = nameEl ? nameEl.textContent.replace('🚗 ','').split(' — ')[0] : 'RC Detailing';
+    var nl = '%0A';
+    var msg = '🚗 *' + companyName + '*' + nl;
+    msg += '━━━━━━━━━━━━━━━━━━━━' + nl;
+    msg += '📋 *Recepción #' + receptionNo + '*' + nl;
+    msg += '📅 Fecha: ' + date + nl;
+    msg += '👤 Cliente: ' + name + nl;
+    msg += '━━━━━━━━━━━━━━━━━━━━' + nl;
+    msg += '🚘 *Vehículo*' + nl;
+    msg += make + ' ' + model + ' ' + year + nl;
+    msg += '🎨 Color: ' + color + nl;
+    msg += '🪪 Placa: *' + plate + '*' + nl;
+    msg += '━━━━━━━━━━━━━━━━━━━━' + nl;
+    if (services) { msg += '🛠️ *Servicios a realizar*' + nl + services + nl + '━━━━━━━━━━━━━━━━━━━━' + nl; }
+    if (damageNotes) { msg += '⚠️ Daños: ' + damageNotes + nl; }
+    msg += '👷 Recibió: ' + receivedBy + nl;
+    msg += nl + '_Las fotos del vehículo se enviarán por separado._' + nl;
+    msg += nl + '_Gracias por su preferencia_ 🙏';
     var url;
     if (phone && phone.length >= 10) {
-        // Send to client's number
         var fullPhone = phone.startsWith('52') ? phone : '52' + phone;
-        url = 'https://wa.me/' + fullPhone + '?text=' + encoded;
+        url = 'https://wa.me/' + fullPhone + '?text=' + encodeURIComponent(msg.replace(/%0A/g, '\n'));
     } else {
-        // No phone - open WhatsApp without number
-        url = 'https://wa.me/?text=' + encoded;
+        url = 'https://wa.me/?text=' + encodeURIComponent(msg.replace(/%0A/g, '\n'));
     }
     window.open(url, '_blank');
 }
-
 function showToast(msg) {
     var t = document.getElementById('crm-toast');
     if (t) { t.textContent = msg; t.style.display = 'block'; setTimeout(function(){t.style.display='none';},3000); }

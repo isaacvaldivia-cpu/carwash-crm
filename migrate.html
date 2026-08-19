@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migración de Datos — Business Manager</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Segoe UI',Arial,sans-serif; background:#1a1a2e; display:flex; justify-content:center; align-items:center; min-height:100vh; padding:20px; }
+        .box { background:white; padding:40px; border-radius:12px; width:500px; box-shadow:0 20px 60px rgba(0,0,0,0.4); }
+        h1 { font-size:20px; color:#1a1a2e; margin-bottom:8px; }
+        p { color:#888; font-size:13px; margin-bottom:24px; line-height:1.6; }
+        .field { margin-bottom:16px; }
+        .field label { display:block; font-size:12px; font-weight:600; color:#444; margin-bottom:6px; }
+        .field input { width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; outline:none; }
+        .field input:focus { border-color:#4f46e5; }
+        button { width:100%; padding:12px; background:#4f46e5; color:white; border:none; border-radius:8px; font-size:15px; font-weight:600; cursor:pointer; margin-bottom:12px; }
+        button:hover { background:#4338ca; }
+        #status { padding:14px; border-radius:8px; font-size:13px; text-align:center; display:none; }
+        .success { background:#f0fff4; color:#276749; border:1px solid #c6f6d5; }
+        .error { background:#fff5f5; color:#c53030; border:1px solid #fed7d7; }
+        .info { background:#f0f4ff; color:#3451b2; border:1px solid #c3d0ff; }
+        .step { background:#f8f9ff; border:1px solid #e0e4ff; border-radius:8px; padding:14px; margin-bottom:12px; font-size:13px; color:#444; }
+        .step strong { color:#4f46e5; }
+    </style>
+</head>
+<body>
+<div class="box">
+    <h1>🚀 Migración a la Nube</h1>
+    <p>Esta herramienta sube sus datos actuales del CRM local a Firebase para acceso desde cualquier dispositivo.</p>
+
+    <div class="step">
+        <strong>Paso 1:</strong> Abra el CRM local en Chrome, inicie sesión normalmente.
+    </div>
+    <div class="step">
+        <strong>Paso 2:</strong> Abra esta página en el <strong>mismo Chrome</strong> (los datos siguen en el navegador).
+    </div>
+    <div class="step">
+        <strong>Paso 3:</strong> Ingrese su nuevo correo y contraseña de Firebase, y suba los datos.
+    </div>
+
+    <div class="field">
+        <label>Correo Firebase (nuevo login)</label>
+        <input type="email" id="mig-email" placeholder="admin@sunegocio.com" />
+    </div>
+    <div class="field">
+        <label>Contraseña Firebase (nueva contraseña)</label>
+        <input type="password" id="mig-password" placeholder="Mínimo 6 caracteres" />
+    </div>
+
+    <button onclick="migrateData()">☁️ Migrar Datos a la Nube</button>
+    <button onclick="testConnection()" style="background:#38a169;">🔌 Probar Conexión</button>
+
+    <div id="status"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBevSvWNUBHCZRgRrthlTicy2_Dap_US84",
+    authDomain: "carwash-crm-cdf50.firebaseapp.com",
+    projectId: "carwash-crm-cdf50",
+    storageBucket: "carwash-crm-cdf50.firebasestorage.app",
+    messagingSenderId: "219035211353",
+    appId: "1:219035211353:web:4d1a5c11e0a6fd11a1c348"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+function showStatus(msg, type) {
+    const el = document.getElementById("status");
+    el.textContent = msg;
+    el.className = type;
+    el.style.display = "block";
+}
+
+window.testConnection = async function() {
+    showStatus("🔌 Probando conexión con Firebase...", "info");
+    try {
+        const email = document.getElementById("mig-email").value.trim();
+        const pwd = document.getElementById("mig-password").value;
+        if (!email || !pwd) { showStatus("⚠️ Ingrese correo y contraseña primero.", "error"); return; }
+
+        // Try to create user or sign in
+        try {
+            await createUserWithEmailAndPassword(auth, email, pwd);
+            showStatus("✅ Usuario creado y conexión exitosa con Firebase!", "success");
+        } catch(e) {
+            if (e.code === "auth/email-already-in-use") {
+                await signInWithEmailAndPassword(auth, email, pwd);
+                showStatus("✅ Conexión exitosa — usuario ya existía.", "success");
+            } else {
+                throw e;
+            }
+        }
+    } catch(e) {
+        showStatus("❌ Error: " + e.message, "error");
+    }
+};
+
+window.migrateData = async function() {
+    const email = document.getElementById("mig-email").value.trim();
+    const pwd = document.getElementById("mig-password").value;
+
+    if (!email || !pwd) { showStatus("⚠️ Ingrese correo y contraseña.", "error"); return; }
+    if (pwd.length < 6) { showStatus("⚠️ La contraseña debe tener al menos 6 caracteres.", "error"); return; }
+
+    showStatus("🔍 Buscando datos locales...", "info");
+
+    // Get data from localStorage (the encrypted CRM data)
+    const encrypted = localStorage.getItem("inventory-app-v1");
+    const sessionData = sessionStorage.getItem("appData");
+
+    if (!sessionData && !encrypted) {
+        showStatus("⚠️ No se encontraron datos locales. Asegúrese de haber iniciado sesión en el CRM local primero.", "error");
+        return;
+    }
+
+    let data = null;
+    if (sessionData) {
+        data = JSON.parse(sessionData);
+        showStatus("✅ Datos encontrados en sesión. Conectando a Firebase...", "info");
+    } else {
+        showStatus("⚠️ Datos encriptados encontrados pero necesita iniciar sesión en el CRM local primero para desencriptarlos.", "error");
+        return;
+    }
+
+    try {
+        // Create or sign in user
+        let user;
+        try {
+            const cred = await createUserWithEmailAndPassword(auth, email, pwd);
+            user = cred.user;
+        } catch(e) {
+            if (e.code === "auth/email-already-in-use") {
+                const cred = await signInWithEmailAndPassword(auth, email, pwd);
+                user = cred.user;
+            } else throw e;
+        }
+
+        showStatus("☁️ Subiendo datos a Firebase...", "info");
+
+        // Save to Firestore
+        const docRef = doc(db, "businesses", "carwash-001");
+        await setDoc(docRef, {
+            data: JSON.stringify(data),
+            updatedAt: new Date().toISOString(),
+            migratedAt: new Date().toISOString()
+        });
+
+        showStatus("✅ ¡Migración exitosa! Sus datos están ahora en la nube. Puede cerrar esta ventana.", "success");
+
+    } catch(e) {
+        showStatus("❌ Error durante la migración: " + e.message, "error");
+    }
+};
+</script>
+</body>
+</html>

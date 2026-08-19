@@ -1586,3 +1586,79 @@ function selectTire(label, group) {
     if (radio) radio.checked = true;
 }
 </script>
+<script type="module">
+// ============================================
+// FIREBASE AUTH — Car Reception Login
+// ============================================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBevSvWNUBHCZRgRrthlTicy2_Dap_US84",
+    authDomain: "carwash-crm-cdf50.firebaseapp.com",
+    projectId: "carwash-crm-cdf50",
+    storageBucket: "carwash-crm-cdf50.firebasestorage.app",
+    messagingSenderId: "219035211353",
+    appId: "1:219035211353:web:4d1a5c11e0a6fd11a1c348"
+};
+
+const recApp = initializeApp(firebaseConfig, "reception-app");
+const recAuth = getAuth(recApp);
+const recDb = getFirestore(recApp);
+const CLIENT_ID = "carwash-001";
+
+async function loadReceptionData() {
+    try {
+        const snap = await getDoc(doc(recDb, "businesses", CLIENT_ID));
+        if (snap.exists()) {
+            const data = JSON.parse(snap.data().data);
+            sessionStorage.setItem("appData", JSON.stringify(data));
+            if (typeof loadCarReceptionBranding === "function") loadCarReceptionBranding();
+            if (typeof loadCRMClients === "function") loadCRMClients();
+        }
+    } catch(e) { console.error("Reception load error:", e); }
+}
+
+window.DB = {
+    getPassword() { return "firebase"; },
+    setPassword() {}, clearPassword() {},
+    async save(data) {
+        try {
+            sessionStorage.setItem("appData", JSON.stringify(data));
+            const user = recAuth.currentUser;
+            if (!user) return false;
+            await setDoc(doc(recDb, "businesses", CLIENT_ID), {
+                data: JSON.stringify(data),
+                updatedAt: new Date().toISOString()
+            });
+            return true;
+        } catch(e) { console.error("Save error:", e); return false; }
+    }
+};
+
+window.receptionLogin = async function() {
+    const email = document.getElementById("rec-login-email").value.trim();
+    const password = document.getElementById("rec-login-password").value;
+    const errorEl = document.getElementById("rec-login-error");
+    if (!email || !password) { errorEl.textContent = "⚠️ Ingrese correo y contraseña."; return; }
+    errorEl.style.color = "#4f46e5";
+    errorEl.textContent = "Iniciando sesión...";
+    try {
+        await signInWithEmailAndPassword(recAuth, email, password);
+    } catch(e) {
+        errorEl.style.color = "#e53e3e";
+        errorEl.textContent = e.code === "auth/invalid-credential" ? "❌ Correo o contraseña incorrectos." : "❌ " + e.message;
+    }
+};
+
+onAuthStateChanged(recAuth, async function(user) {
+    if (user) {
+        await loadReceptionData();
+        const overlay = document.getElementById("reception-login-overlay");
+        if (overlay) overlay.style.display = "none";
+    }
+});
+</script>
+</body>
+</html>

@@ -237,63 +237,37 @@
             height: 50px;
         }
         .signature-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
-        /* ---- PRINT BUTTON ---- */
-        .print-btn {
+        /* ---- ACTION BUTTONS ---- */
+        #action-buttons {
             position: fixed;
             bottom: 30px;
             right: 30px;
-            padding: 14px 24px;
-            background: #4f46e5;
+            display: flex;
+            gap: 12px;
+            z-index: 999;
+        }
+        .print-btn, .new-btn, .save-crm-btn {
+            padding: 14px 20px;
             color: white;
             border: none;
             border-radius: 10px;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            box-shadow: 0 4px 20px rgba(79,70,229,0.4);
             transition: all 0.2s;
-            z-index: 999;
+            white-space: nowrap;
         }
-        .print-btn:hover { background: #4338ca; transform: translateY(-2px); }
-        .new-btn {
-            position: fixed;
-            bottom: 30px;
-            right: 390px;
-            padding: 14px 24px;
-            background: #38a169;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 4px 20px rgba(56,161,105,0.4);
-            transition: all 0.2s;
-            z-index: 999;
-        }
-        .new-btn:hover { background: #276749; transform: translateY(-2px); }
-        .save-crm-btn {
-            position: fixed;
-            bottom: 30px;
-            right: 210px;
-            padding: 14px 24px;
-            background: #2b6cb0;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 4px 20px rgba(43,108,176,0.4);
-            transition: all 0.2s;
-            z-index: 999;
-        }
-        .save-crm-btn:hover { background: #2c5282; transform: translateY(-2px); }
+        .print-btn { background: #4f46e5; box-shadow: 0 4px 20px rgba(79,70,229,0.4); }
+        .print-btn:hover { background: #4338ca; }
+        .save-crm-btn { background: #2b6cb0; box-shadow: 0 4px 20px rgba(43,108,176,0.4); }
+        .save-crm-btn:hover { background: #2c5282; }
+        .new-btn { background: #38a169; box-shadow: 0 4px 20px rgba(56,161,105,0.4); }
+        .new-btn:hover { background: #276749; }
         /* ---- PRINT STYLES ---- */
         @media print {
             body { background: white; padding: 0; }
             .page { box-shadow: none; border-radius: 0; }
-            .print-btn, .new-btn, .save-crm-btn { display: none; }
+            #action-buttons { display: none; }
             .field input, .field select, .field textarea { border-bottom-color: #ccc; }
         }
         /* ---- DAMAGE LEGEND ---- */
@@ -328,9 +302,11 @@
 </head>
 <body>
 
-<button class="print-btn" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
-<button class="save-crm-btn" onclick="saveReceptionToCRM()">💾 Guardar en CRM</button>
-<button class="new-btn" onclick="resetForm()">🆕 Nueva Recepción</button>
+<div id="action-buttons">
+    <button class="new-btn" onclick="resetForm()">🆕 Nueva Recepción</button>
+    <button class="save-crm-btn" onclick="saveReceptionToCRM()">💾 Guardar en CRM</button>
+    <button class="print-btn" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+</div>
 
 <div class="page">
 
